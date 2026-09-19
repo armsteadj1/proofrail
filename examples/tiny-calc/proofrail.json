@@ -1,0 +1,51 @@
+{
+  "$schema": "../../schema/proofrail.schema.json",
+  "version": 1,
+  "name": "tiny-calc",
+  "commands": {
+    "unit": {
+      "cmd": "node",
+      "args": ["--test", "test/calc.test.js"],
+      "timeoutMs": 60000,
+      "description": "Run the node:test suite"
+    }
+  },
+  "claims": [
+    {
+      "id": "add-commutative",
+      "statement": "add(a, b) equals add(b, a) for all numeric inputs.",
+      "anchors": [{ "file": "src/calc.js", "symbol": "add" }],
+      "proofs": [
+        { "kind": "command", "command": "unit" },
+        { "kind": "test", "file": "test/calc.test.js", "name": "add is commutative", "command": "unit" }
+      ]
+    },
+    {
+      "id": "divide-rejects-zero",
+      "statement": "divide(a, 0) throws a RangeError instead of returning Infinity.",
+      "anchors": [{ "file": "src/calc.js", "symbol": "divide" }],
+      "proofs": [
+        { "kind": "file-contains", "file": "src/calc.js", "pattern": "throw new RangeError" },
+        { "kind": "test", "file": "test/calc.test.js", "name": "divide by zero throws" }
+      ],
+      "done": "A test named \"divide by zero throws\" exists and asserts RangeError."
+    },
+    {
+      "id": "percent-rounds-half-up",
+      "statement": "percent(part, whole) rounds .5 upward, so percent(1, 8) is 13.",
+      "weight": 2,
+      "anchors": [{ "file": "src/calc.js", "symbol": "percent" }],
+      "proofs": [
+        { "kind": "command", "command": "unit", "expect": { "exitCode": 0, "outputIncludes": "percent rounds half up" } },
+        { "kind": "manual", "note": "Rounding mode was chosen to match the invoice PDF generator." }
+      ],
+      "reproducer": "node --test test/calc.test.js"
+    },
+    {
+      "id": "divide-documented",
+      "statement": "README documents that divide throws on a zero divisor.",
+      "anchors": [{ "file": "README.md", "pattern": "divide\\(a, b\\)" }],
+      "proofs": [{ "kind": "file-contains", "file": "README.md", "text": "throws on a zero divisor" }]
+    }
+  ]
+}
