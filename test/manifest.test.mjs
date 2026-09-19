@@ -28,6 +28,20 @@ test('rejects proofs that reference undeclared commands', () => {
   assert.throws(() => parseManifest(m, examplePath), /undeclared command "lint"/);
 });
 
+test('validates focused test commands against an exact referenced test proof', () => {
+  const m = base();
+  m.commands.unit.focusedTest = { file: 'test/calc.test.js', name: 'add is commutative' };
+  assert.deepEqual(parseManifest(m, examplePath).commands.unit.focusedTest, m.commands.unit.focusedTest);
+
+  m.commands.unit.focusedTest.name = 'a different test';
+  assert.throws(() => parseManifest(m, examplePath), /must exactly match a test proof/);
+
+  const m2 = base();
+  m2.commands.unit.focusedTest = { file: 'test/calc.test.js', name: 'add is commutative' };
+  m2.claims[0].proofs.push({ kind: 'test', file: 'test/calc.test.js', name: 'another test', command: 'unit' });
+  assert.throws(() => parseManifest(m2, examplePath), /does not match its focusedTest/);
+});
+
 test('rejects duplicate claim ids', () => {
   const m = base();
   m.claims[1].id = m.claims[0].id;

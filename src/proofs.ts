@@ -1,4 +1,4 @@
-import type { Proof } from './manifest.js';
+import type { CommandSpec, Proof } from './manifest.js';
 import type { RunResult } from './runner.js';
 import { readTextInside, PathEscapeError } from './paths.js';
 import { describeRun } from './runner.js';
@@ -46,7 +46,8 @@ export function evaluateProof(
   root: string,
   index: number,
   proof: Proof,
-  runs: ReadonlyMap<string, RunResult>
+  runs: ReadonlyMap<string, RunResult>,
+  commands: Readonly<Record<string, CommandSpec>> = {}
 ): ProofResult {
   const note = proof.note !== undefined ? { note: proof.note } : {};
   switch (proof.kind) {
@@ -120,6 +121,10 @@ export function evaluateProof(
         return { index, kind: proof.kind, status: 'failed', strength, detail: `command "${proof.command}" ${describeRun(run)}: ${firstLine(run.stderr) || firstLine(run.stdout)}`, howToSatisfy: `Make command "${proof.command}" exit 0 with test ${JSON.stringify(proof.name)} passing.`, ...cmd, ...note };
       }
       if (!out.includes(proof.name)) {
+        const focus = commands[proof.command]?.focusedTest;
+        if (focus?.file === proof.file && focus.name === proof.name) {
+          return { index, kind: proof.kind, status: 'passed', strength, detail: `focused test ${JSON.stringify(proof.name)} present and passed under "${proof.command}" (${describeRun(run)})`, howToSatisfy: `Keep focused test ${JSON.stringify(proof.name)} passing under "${proof.command}".`, ...cmd, ...note };
+        }
         return { index, kind: proof.kind, status: 'failed', strength, detail: `command "${proof.command}" exited 0 but its output never mentions ${JSON.stringify(proof.name)}`, howToSatisfy: `Ensure command "${proof.command}" actually runs ${proof.file} and reports test ${JSON.stringify(proof.name)}.`, ...cmd, ...note };
       }
       return { index, kind: proof.kind, status: 'passed', strength, detail: `test ${JSON.stringify(proof.name)} present and reported by "${proof.command}" (${describeRun(run)})`, howToSatisfy: `Keep test ${JSON.stringify(proof.name)} passing under "${proof.command}".`, ...cmd, ...note };

@@ -11,6 +11,11 @@ const name = z.string().regex(NAME_RE, 'must match /^[A-Za-z0-9][A-Za-z0-9_.:-]{
 
 const relPath = z.string().min(1).max(1024);
 
+const focusedTestSchema = z.strictObject({
+  file: relPath.describe('Test file targeted by this focused command, relative to the project root.'),
+  name: z.string().min(1).describe('Exact test name targeted by this focused command.')
+});
+
 export const commandSchema = z.strictObject({
   cmd: z.string().min(1).describe('Executable to spawn. No shell is used; the string is the program name or path.'),
   args: z.array(z.string()).default([]).describe('Argument vector passed verbatim to the executable.'),
@@ -18,6 +23,7 @@ export const commandSchema = z.strictObject({
   env: z.record(z.string(), z.string()).optional().describe('Extra environment variables merged over the server environment.'),
   timeoutMs: z.number().int().positive().max(600_000).default(120_000),
   maxOutputBytes: z.number().int().positive().max(1_048_576).default(65_536),
+  focusedTest: focusedTestSchema.optional().describe('Declares that this command runs exactly one test. A zero exit can prove only the matching test proof.'),
   description: z.string().optional()
 });
 
@@ -107,6 +113,16 @@ export const manifestSchema = z
             message: `references undeclared command "${ref}"`
           });
         }
+        if (p.kind === 'test' && p.command !== undefined) {
+          const focus = m.commands[p.command]?.focusedTest;
+          if (focus !== undefined && (p.file !== focus.file || p.name !== focus.name)) {
+            ctx.addIssue({
+              code: 'custom',
+              path: ['claims', i, 'proofs', j, 'command'],
+              message: `references focused command "${p.command}" but does not match its focusedTest`
+            });
+          }
+        }
         if (p.kind === 'file-contains' && p.text === undefined && p.pattern === undefined) {
           ctx.addIssue({ code: 'custom', path: ['claims', i, 'proofs', j], message: 'file-contains needs text or pattern' });
         }
@@ -122,6 +138,20 @@ export const manifestSchema = z
         }
       });
     });
+    for (const [commandName, command] of Object.entries(m.commands)) {
+      if (command.focusedTest === undefined) continue;
+      const matches = m.claims.flatMap((c) => c.proofs).some((p) =>
+        p.kind === 'test' && p.command === commandName &&
+        p.file === command.focusedTest?.file && p.name === command.focusedTest.name
+      );
+      if (!matches) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['commands', commandName, 'focusedTest'],
+          message: 'must exactly match a test proof that references this command'
+        });
+      }
+    }
   });
 
 function safeRegex(src: string, ctx: z.RefinementCtx, p: (string | number)[]): void {

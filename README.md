@@ -136,6 +136,18 @@ verify → apply packet.next → recheck(claim) until satisfied → verify again
 
 `commands.<name>` is the only place executables come from. Each has `cmd`, `args`, optional `cwd` (must stay inside the root), `env`, `timeoutMs` (default 120 s, max 10 min), and `maxOutputBytes` (default 64 KiB, max 1 MiB).
 
+A command that intentionally selects exactly one test may declare `focusedTest`:
+
+```json
+{
+  "cmd": "npx",
+  "args": ["vitest", "run", "src/example.test.ts", "-t", "handles invalid input"],
+  "focusedTest": { "file": "src/example.test.ts", "name": "handles invalid input" }
+}
+```
+
+`focusedTest` must exactly match a `test` proof that references the command. When it does, exit 0 proves that test even if the reporter omits its full name (for example, Vitest's `1 passed, 83 skipped` summary). Without `focusedTest`, the existing rule remains: the command output itself must mention the exact test name. A generic green command therefore cannot certify an unreported test.
+
 ### Anchors
 
 An anchor is `file` plus one of:
@@ -151,7 +163,7 @@ Anchors resolve to `file:start-end` with a short numbered snippet. An anchor tha
 | kind | checks | strength |
 | --- | --- | --- |
 | `command` | declared command exits with `expect.exitCode` (default 0) and output satisfies `stdoutIncludes`, `stderrIncludes`, `outputIncludes`, `outputMatches` | 1.0 |
-| `test` with `command` | test name appears in the file and the command exits 0 with output mentioning the name | 0.9 |
+| `test` with `command` | test name appears in the file and the command exits 0; output must mention the name unless the command's exact `focusedTest` matches | 0.9 |
 | `test` without `command` | test name appears in the file (not executed) | 0.6 |
 | `file-contains` | file contains `text` or matches `pattern` | 0.4 |
 | `manual` | nothing; documents an unverifiable claim honestly | 0 |

@@ -144,7 +144,7 @@ export class ProofrailEngine {
 
   private assess(root: string, manifest: Manifest, runs: ReadonlyMap<string, RunResult>, only?: Set<string>): ClaimAssessment[] {
     const claims = only ? manifest.claims.filter((c) => only.has(c.id)) : manifest.claims;
-    return claims.map((claim) => assessOne(root, claim, runs));
+    return claims.map((claim) => assessOne(root, claim, runs, manifest.commands));
   }
 
   private async jevFor(a: ClaimAssessment, manifest: Manifest, root: string, wanted: boolean): Promise<JevReport> {
@@ -252,9 +252,9 @@ export class ProofrailEngine {
   }
 }
 
-export function assessOne(root: string, claim: Claim, runs: ReadonlyMap<string, RunResult>): ClaimAssessment {
+export function assessOne(root: string, claim: Claim, runs: ReadonlyMap<string, RunResult>, commands: Manifest['commands'] = {}): ClaimAssessment {
   const anchors = claim.anchors.map((a) => resolveAnchor(root, a));
-  const proofs = claim.proofs.map((p, i) => evaluateProof(root, i, p, runs));
+  const proofs = claim.proofs.map((p, i) => evaluateProof(root, i, p, runs, commands));
   return assessClaim(claim, anchors, proofs);
 }
 

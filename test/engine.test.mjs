@@ -183,3 +183,45 @@ test('a declared command that cannot start is reported as unavailable', async (t
   assert.equal(r.leastProven.missingProof[0].status, 'unavailable');
   assert.match(r.leastProven.missingProof[0].detail, /could not start/);
 });
+
+test('a focused command can prove its exact test without reporter output', async (t) => {
+  const dir = tmpDir(t);
+  fs.writeFileSync(path.join(dir, 'subject.test.js'), "test('the focused case', () => {});\n");
+  writeJson(path.join(dir, 'proofrail.json'), {
+    version: 1,
+    commands: {
+      focused: {
+        cmd: process.execPath,
+        args: ['-e', 'console.log("1 passed, 83 skipped")'],
+        focusedTest: { file: 'subject.test.js', name: 'the focused case' }
+      }
+    },
+    claims: [{
+      id: 'focused-case',
+      statement: 'The focused case works.',
+      anchors: [{ file: 'subject.test.js', pattern: 'the focused case' }],
+      proofs: [{ kind: 'test', file: 'subject.test.js', name: 'the focused case', command: 'focused' }]
+    }]
+  });
+  const r = await new ProofrailEngine({ allowedRoots: [dir] }).verify();
+  assert.equal(r.allProven, true);
+});
+
+test('a generic green command still cannot prove an unreported test', async (t) => {
+  const dir = tmpDir(t);
+  fs.writeFileSync(path.join(dir, 'subject.test.js'), "test('the unreported case', () => {});\n");
+  writeJson(path.join(dir, 'proofrail.json'), {
+    version: 1,
+    commands: { generic: { cmd: process.execPath, args: ['-e', 'console.log("all tests passed")'] } },
+    claims: [{
+      id: 'unreported-case',
+      statement: 'The unreported case works.',
+      anchors: [{ file: 'subject.test.js', pattern: 'the unreported case' }],
+      proofs: [{ kind: 'test', file: 'subject.test.js', name: 'the unreported case', command: 'generic' }]
+    }]
+  });
+  const r = await new ProofrailEngine({ allowedRoots: [dir] }).verify();
+  assert.equal(r.allProven, false);
+  assert.equal(r.leastProven.missingProof[0].status, 'failed');
+  assert.match(r.leastProven.missingProof[0].detail, /output never mentions/);
+});

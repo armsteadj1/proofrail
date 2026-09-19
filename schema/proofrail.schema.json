@@ -65,6 +65,28 @@
             "exclusiveMinimum": 0,
             "maximum": 1048576
           },
+          "focusedTest": {
+            "description": "Declares that this command runs exactly one test. A zero exit can prove only the matching test proof.",
+            "type": "object",
+            "properties": {
+              "file": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024,
+                "description": "Test file targeted by this focused command, relative to the project root."
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Exact test name targeted by this focused command."
+              }
+            },
+            "required": [
+              "file",
+              "name"
+            ],
+            "additionalProperties": false
+          },
           "description": {
             "type": "string"
           }
